@@ -1,0 +1,21 @@
+plugins {
+    id 'application'
+    id 'org.jetbrains.kotlin.jvm' version '1.1.60'
+    id 'com.github.johnrengelman.shadow' version '2.0.1'
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+mainClassName = "com.github.sgdan.WebAppWrapperKt"
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib:1.1.60"
+    compile 'no.tornado:tornadofx:1.7.12'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.3'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-javafx:0.19.3'
+}
+
+kotlin { experimental { coroutines 'enable' } }
