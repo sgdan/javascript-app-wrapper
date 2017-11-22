@@ -7,8 +7,11 @@ import kotlinx.coroutines.experimental.newFixedThreadPoolContext
 import netscape.javascript.JSObject
 import tornadofx.*
 import java.io.File
+import java.net.URI
 import java.net.URL
 import java.nio.file.FileSystems
+import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardWatchEventKinds.*
 import java.util.concurrent.LinkedBlockingQueue
@@ -120,9 +123,85 @@ class WebAppView : View() {
     }
 }
 
+fun sourceFile() = File(WebAppWrapper::class.java.protectionDomain.codeSource.location.path)
+
+fun usage(jar: String) {
+    println("""|usage:
+         |  java -jar $jar [package <target>|unpackage]
+         |  Examples
+         |    Package "web" folder and contents into new executable jar:
+         |    java -jar $jar package MyPackagedCode.jar
+         |
+         |    Unpackage "web" folder and contents from jar into current directory
+         |    java -jar $jar unpackage
+         |
+         |    Run the application (dev mode if "web" folder present)
+         |    java -jar $jar
+         |""".trimMargin("|"))
+    System.exit(1)
+}
+
+fun doPackage(target: String) {
+    // copy the current jar
+    val web = File("web")
+    if (!web.isDirectory) throw Exception("No 'web' folder to package")
+    val newJar = File(target)
+    if (newJar.exists()) newJar.delete()
+    sourceFile().copyTo(newJar)
+
+    // remove "web" folder and contents from new jar
+    val zipUri = URI.create("jar:${newJar.toURI()}")
+    val zfs = FileSystems.newFileSystem(zipUri, mapOf("create" to "false"))
+    val webPath = zfs.getPath("web")
+    Files.walk(webPath).forEach {
+        if (!Files.isDirectory(it)) {
+            Files.delete(it)
+            println("Deleted: $it")
+        }
+    }
+
+    // add files from external "web" folder
+    web.walk().forEach {
+        if (it.isFile) {
+            val newFilePath = webPath.resolve(it.relativeTo(web).path)
+            println("Added: $newFilePath")
+            Files.copy(it.toPath(), newFilePath)
+        }
+    }
+
+    // flush changes to zip
+    zfs.close()
+    println("Packaged: ${File(target)}")
+}
+
+fun doUnpackage() {
+    val web = File("web")
+    if (web.exists()) throw Exception("There's already a 'web' folder")
+
+    // unpack web folder externally
+    val zipUri = URI.create("jar:${sourceFile().toURI()}")
+    val zfs = FileSystems.newFileSystem(zipUri, mapOf("create" to "false"))
+    val webPath = zfs.getPath("/web")
+    Files.walk(webPath).forEach {
+        if (!Files.isDirectory(it)) {
+            val target = File(web, webPath.relativize(it).toString())
+            target.parentFile.mkdirs()
+            Files.copy(it, target.toPath())
+            println("Created: $target")
+        }
+    }
+}
+
 fun main(args: Array<String>) {
-    // load front end
-    Application.launch(WebAppWrapper::class.java)
-    // thread blocks here until application exits, don't add code after this!
-    // can't run this in bg thread, will exit too early
+    val jar = sourceFile().name
+    when {
+        args.isEmpty() -> Application.launch(WebAppWrapper::class.java)
+        !jar.endsWith(".jar") -> {
+            System.err.println("Commands package|unpackage only supported when running from jar")
+            System.exit(1)
+        }
+        args.size == 2 && args[0] == "package" -> doPackage(args[1])
+        args.size == 1 && args[0] == "unpackage" -> doUnpackage()
+        else -> usage(jar)
+    }
 }

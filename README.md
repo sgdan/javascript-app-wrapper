@@ -5,8 +5,12 @@ An executable JAR which can be run as a desktop app. App is implemented in JavaS
 - Worker code running in background threads for processor intensive work (Nashorn JS engine)
 - Small Kotlin main class linking everything
 
-To run:
+### Execute
 ```
  ./gradlew clean shadowJar
  java -jar build/libs/javascript-app-wrapper-all.jar
 ```
+
+### Todo
+- Dev mode, reload worker scripts and thread pool?
+- Main window size/resize/transparency configuration and example?
