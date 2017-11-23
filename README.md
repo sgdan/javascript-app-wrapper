@@ -12,7 +12,7 @@ An executable JAR which can be run as a desktop app
 - Make sure you have Java JRE installed so you can run executable JAR files (I used JDK 9 to test)
 - Download release [javascript-app-wrapper-0.0.1.jar](https://github.com/sgdan/javascript-app-wrapper/releases/download/v0.0.1/javascript-app-wrapper-0.0.1.jar)
 - Double-click the jar to run the demo app:
-    ![Demo App Screenshot](https://raw.githubusercontent.com/sgdan/javascript-app-wrapper/docs/images/demo.png "Demo App")
+    ![Demo App Screenshot](https://raw.githubusercontent.com/sgdan/javascript-app-wrapper/master/docs/images/demo.png "Demo App")
 - Click "Log" to log a message to the Firebug console
 - Click "Work" to do some work in a background thread. Click it a few times and watch your CPU go to 75% for a while.
 - Exit the demo then extract the demo app files:
@@ -39,7 +39,7 @@ An executable JAR which can be run as a desktop app
     <script type='text/javascript' src='http://getfirebug.com/releases/lite/1.2/firebug-lite-compressed.js'></script>
     ```
   - Notice that the app reloads as each change is saved:
-    ![Custom App Screenshot](https://raw.githubusercontent.com/sgdan/javascript-app-wrapper/docs/images/modified.png "Custom App")
+    ![Custom App Screenshot](https://raw.githubusercontent.com/sgdan/javascript-app-wrapper/master/docs/images/modified.png "Custom App")
 
 - Exit the modified app package the changes into a new executable jar:
     ```
