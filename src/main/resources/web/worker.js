@@ -13,8 +13,10 @@ var jobs = {
     }
 }
 
-while (true) {
-    var task = tasks.take()
+var task = tasks.take()
+while (task != null) {
     jobs[task.name](task.args)
+    task = tasks.take()
 }
 
+console.log("worker exiting")

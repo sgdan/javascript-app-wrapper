@@ -1,8 +1,8 @@
 html,
 body {
     margin: 0;
-    padding: 0;
-    background-color: black;
+    padding: 5;
+    background-color: blue;
     font-family: Arial, Helvetica, Verdana, Geneva, Tahoma, sans-serif;
     color: #faa;
     font-size: 12px;
