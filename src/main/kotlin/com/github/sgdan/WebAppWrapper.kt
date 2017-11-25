@@ -34,19 +34,15 @@ class WebAppView : View() {
 
     /** For workers to send messages to the UI */
     private val ui = object {
-        fun send(name: String, args: Array<Any>) {
+        fun send(vararg args: Any?) {
+            if (args.isEmpty()) throw Exception("Arguments needed")
+            val name = args[0].toString()
             // call named method in JavaFX UI thread
             launch(UI) {
                 val window = web.engine.executeScript("window") as JSObject
-                window.call(name, args)
+                window.call(name, *args.drop(1).toTypedArray())
             }
         }
-    }
-
-    fun toArray(jso: JSObject): Array<Any> {
-        val len = jso.getMember("length")
-        return if (len is Int) Array(len) { i -> jso.getSlot(i) }
-        else emptyArray()
     }
 
     /**
@@ -63,10 +59,13 @@ class WebAppView : View() {
     val workerHook: URL
     var workers: Workers? = null
 
-    /** For UI to create tasks */
-    val tasks = object {
-        fun add(name: String, args: JSObject) {
-            workers?.add(name, args)
+    /** For UI to send messages to the worker */
+    val worker = object {
+        fun sendHook(args: JSObject) {
+            val len = args.getMember("length")
+            val argList = if (len is Int) 0.until(len).map { args.getSlot(it) }
+            else emptyList()
+            workers?.send(argList)
         }
     }
 
@@ -93,7 +92,9 @@ class WebAppView : View() {
         web.engine.loadWorker.stateProperty().addListener { _, _, newValue ->
             if (newValue == Worker.State.SUCCEEDED) {
                 val window = web.engine.executeScript("window") as JSObject
-                window.setMember("tasks", tasks)
+                // WebView doesn't support varargs, so marshal args with this function
+                window.eval("function send() { worker.sendHook(arguments) }")
+                window.setMember("worker", worker)
             }
         }
         web.engine.load(uiHook.toExternalForm())

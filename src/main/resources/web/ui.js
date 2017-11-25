@@ -1,7 +1,7 @@
 // called from worker thread
-function workDone(args) {
+function workDone(msg, seconds, thread) {
     var ta = document.getElementById('messages')
-    ta.value = args + '\n' + ta.value
+    ta.value = msg + " (" + seconds + "s, " + thread + ")\n" + ta.value
 }
 
 // this gets logged to the WebView dev tools console
@@ -10,5 +10,5 @@ function doLog() {
 }
 
 function doWork() {
-    tasks.add("doWork", [document.getElementById('seconds').value])
+    send("doWork", parseInt(document.getElementById('seconds').value))
 }

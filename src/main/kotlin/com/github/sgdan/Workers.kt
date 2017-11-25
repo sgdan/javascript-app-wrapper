@@ -1,11 +1,9 @@
 package com.github.sgdan
 
+import jdk.nashorn.api.scripting.JSObject
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.newFixedThreadPoolContext
-import netscape.javascript.JSObject
 import java.net.URL
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit.SECONDS
 import javax.script.ScriptEngine
 import kotlinx.coroutines.experimental.javafx.JavaFx as UI
 
@@ -20,53 +18,36 @@ class Console {
  * A pool of background worker threads to perform tasks asynchronously
  */
 class Workers(engine: ScriptEngine, script: URL, ui: Any) {
-    val nWorkers = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1)
-    val pool = newFixedThreadPoolContext(nWorkers, "worker-pool")
+    private val nWorkers = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1)
+    private val pool = newFixedThreadPoolContext(nWorkers, "worker-pool")
     private val console = Console() // redirect messages from workers to console
-
-    /** Tasks to be processed by the workers */
-    private val tasks = LinkedBlockingQueue<Task>()
-    private var running = true
+    private val worker: JSObject
 
     init {
-        (1..nWorkers).forEach {
-            launch(pool) {
-                // bindings aren't thread safe, so one for each thread
-                val bindings = engine.createBindings()
-                bindings.put("console", console) // support console.log for workers
-                bindings.put("tasks", workerTake)
-                bindings.put("ui", ui)
-                engine.eval(script.readText(), bindings)
-            }
+        val bindings = engine.createBindings()
+        bindings.put("console", console) // support console.log for workers
+        bindings.put("ui", ui)
+        val bound = engine.eval(script.readText(), bindings)
+        when (bound) {
+            is JSObject -> worker = bound
+            else -> throw Exception("Unable to read script")
         }
     }
 
     fun stop() {
-        running = false
         pool.close()
-        tasks.clear()
     }
 
-    fun add(name: String, args: JSObject) {
-        tasks.add(Task(name, toArray(args)))
-    }
-
-    /**
-     * Convert JSObject to java array
-     */
-    private fun toArray(jso: JSObject): Array<Any> {
-        val len = jso.getMember("length")
-        return if (len is Int) Array(len) { i -> jso.getSlot(i) }
-        else emptyArray()
-    }
-
-    private val workerTake = object {
-        fun take(): Task? {
-            while (running) {
-                val task = tasks.poll(5, SECONDS)
-                if (task != null) return task
+    fun send(args: List<Any?>) {
+        if (args.isEmpty()) throw Exception("Arguments needed")
+        val name = args.first().toString()
+        // call named method in worker thread
+        launch(pool) {
+            val fn = worker.getMember(name)
+            when (fn) {
+                is JSObject -> fn.call(fn, *args.drop(1).toTypedArray())
+                else -> throw Exception("Function not found: $name")
             }
-            return null
         }
     }
 }
