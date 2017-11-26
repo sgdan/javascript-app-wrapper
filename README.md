@@ -65,3 +65,11 @@ An executable JAR which can be run as a desktop app
  ./gradlew clean shadowJar
  java -jar build/libs/javascript-app-wrapper-all.jar
 ```
+To test dev mode unpack first...
+```
+java -jar build/libs/javascript-app-wrapper-all.jar unpackage
+```
+...then rebuild and run
+```
+./gradlew shadowJar && java -jar build/libs/javascript-app-wrapper-all.jar
+```

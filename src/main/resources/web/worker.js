@@ -2,7 +2,7 @@ var Thread = java.lang.Thread
 
 function doWork(seconds) {
     var s = parseInt(seconds)
-    if (s.isNaN() || s < 0 || s > 15) {
+    if (isNaN(s) || s < 0 || s > 15) {
         ui.send("workDone", "Invalid work time", s, Thread.currentThread().name)
     } else {
         console.log("working for " + seconds + " seconds")
