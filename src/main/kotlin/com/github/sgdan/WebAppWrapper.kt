@@ -4,6 +4,7 @@ import javafx.application.Application
 import javafx.concurrent.Worker
 import javafx.scene.web.WebView
 import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.experimental.newFixedThreadPoolContext
 import netscape.javascript.JSObject
 import tornadofx.*
 import java.io.File
@@ -15,18 +16,18 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardWatchEventKinds.*
 import javax.script.ScriptEngineManager
+import jdk.nashorn.api.scripting.JSObject as NasObject
 import kotlinx.coroutines.experimental.javafx.JavaFx as UI
 
 class WebAppWrapper : App(WebAppView::class)
 
-/** Task to be executed by worker thread */
-data class Task(val name: String, val args: Array<Any>)
-
 class WebAppView : View() {
-    private val nashorn = ScriptEngineManager().getEngineByName("nashorn")
-
     private val web = WebView()
     override val root = web
+
+    private val nWorkers = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1)
+    private val pool = newFixedThreadPoolContext(nWorkers, "worker-pool")
+    private var workerScript: NasObject? = null
 
     fun devFolder() = File("web")
 
@@ -55,40 +56,40 @@ class WebAppView : View() {
             // from classpath (i.e. contained within executable jar
             else WebAppWrapper::class.java.classLoader.getResource("web/$name")
 
-    val uiHook: URL
-    val workerHook: URL
-    var workers: Workers? = null
-
     /** For UI to send messages to the worker */
     val worker = object {
         fun sendHook(args: JSObject) {
             val len = args.getMember("length")
-            val argList = if (len is Int) 0.until(len).map { args.getSlot(it) }
-            else emptyList()
-            workers?.send(argList)
+            if (len !is Int || len == 0) throw Exception("Arguments needed")
+            val name = args.getSlot(0).toString()
+            val params = 1.until(len).map { args.getSlot(it) }.toTypedArray()
+            launch(pool) {
+                val fn = workerScript?.getMember(name) as? NasObject
+                        ?: throw Exception("Function not found: $name")
+                fn.call(fn, *params)
+            }
         }
     }
 
-    /**
-     * Reload UI and reset thread pool & workers
-     */
-    fun reset() {
-        workers?.stop()
-        workers = Workers(nashorn, workerHook, ui)
-        launch(UI) {
-            web.engine.reload()
+    fun loadWorker() {
+        val workerHook = checkNotNull(findResource("worker.js")) {
+            "Must provide worker hook: web/worker.js"
         }
+        val nashorn = ScriptEngineManager().getEngineByName("nashorn")
+        val bindings = nashorn.createBindings()
+        bindings.put("console", Console())
+        bindings.put("ui", ui)
+        workerScript = nashorn.eval(workerHook.readText(), bindings) as? NasObject
+                ?: throw Exception("Unable to load worker script $workerHook")
     }
 
     init {
-        uiHook = checkNotNull(findResource("ui.html")) {
+        loadWorker()
+
+        // UI
+        val uiHook = checkNotNull(findResource("ui.html")) {
             "Must provide UI hook: web/ui.html"
         }
-        workerHook = checkNotNull(findResource("worker.js")) {
-            "Must provide worker hook: web/worker.js"
-        }
-        workers = Workers(nashorn, workerHook, ui)
-
         web.engine.loadWorker.stateProperty().addListener { _, _, newValue ->
             if (newValue == Worker.State.SUCCEEDED) {
                 val window = web.engine.executeScript("window") as JSObject
@@ -109,7 +110,8 @@ class WebAppView : View() {
                     val key = watcher.take()
                     sleep(50) // wait a bit, in case there are multiple events
                     key.pollEvents()
-                    reset()
+                    launch(UI) { web.engine.reload() } // reload the UI
+                    loadWorker() // reload worker
                     key.reset()
                 }
             }
@@ -199,4 +201,11 @@ fun main(args: Array<String>) {
         args.size == 1 && args[0] == "unpackage" -> doUnpackage()
         else -> usage(jar)
     }
+}
+
+/**
+ * For worker threads to log to System.out, simulates console.log()
+ */
+class Console {
+    fun log(vararg data: Any?) = println(data.joinToString())
 }

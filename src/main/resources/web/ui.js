@@ -10,5 +10,5 @@ function doLog() {
 }
 
 function doWork() {
-    send("doWork", parseInt(document.getElementById('seconds').value))
+    send("doWork", document.getElementById('seconds').value)
 }
