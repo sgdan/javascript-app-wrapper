@@ -54,7 +54,7 @@ class WebAppView : View() {
             if (inDevMode()) File(devFolder(), name).toURI().toURL()
 
             // from classpath (i.e. contained within executable jar
-            else WebAppWrapper::class.java.classLoader.getResource("web/$name")
+            else this::class.java.classLoader.getResource("web/$name")
 
     /** For UI to send messages to the worker */
     val worker = object {
@@ -79,6 +79,7 @@ class WebAppView : View() {
         val bindings = nashorn.createBindings()
         bindings.put("console", Console())
         bindings.put("ui", ui)
+        bindings.put("wrapper", this)
         workerScript = nashorn.eval(workerHook.readText(), bindings) as? NasObject
                 ?: throw Exception("Unable to load worker script $workerHook")
     }
