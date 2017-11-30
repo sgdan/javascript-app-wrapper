@@ -151,6 +151,7 @@ fun doPackage(target: String) {
     val zipUri = URI.create("jar:${newJar.toURI()}")
     val zfs = FileSystems.newFileSystem(zipUri, mapOf("create" to "false"))
     val webPath = zfs.getPath("web")
+    if (!Files.exists(webPath)) Files.createDirectories(webPath)
     Files.walk(webPath).forEach {
         if (!Files.isDirectory(it)) {
             Files.delete(it)
@@ -162,6 +163,7 @@ fun doPackage(target: String) {
     web.walk().forEach {
         if (it.isFile) {
             val newFilePath = webPath.resolve(it.relativeTo(web).path)
+            Files.createDirectories(newFilePath.parent)
             println("Added: $newFilePath")
             Files.copy(it.toPath(), newFilePath)
         }

@@ -13,12 +13,12 @@ Platform.runLater(function() {
     var title = stage.titleProperty()
     title.unbind()
     title.value = "JavaScript App Wrapper"
-    stage.icons.add(new Image(wrapper.findResource("folder.png")))
+    stage.icons.add(new Image(wrapper.findResource("images/folder.png")))
 })
 
 function doWork(seconds) {
     var s = parseInt(seconds)
-    if (isNaN( s) || s < 0 || s > 15) {
+    if (isNaN(s) || s < 0 || s > 15) {
         ui.send("workDone", "Invalid work time", s, Thread.currentThread().name)
     } else {
         console.log("working for " + seconds + " seconds")
